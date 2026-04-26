@@ -1,0 +1,59 @@
+@startuml Error_Handling_Flow
+
+start
+
+:Router / Controller recebe **Request**;
+
+if (Simple Flow ou Complex Flow?) then (Simple)
+  :BusinessService ou ClientService executado;
+  if (Falha na Lógica ou Chamada Externa?) then (Sim)
+    :Controller recebe Exception / Error;
+    :ResponseService formata para **Unified JSON Response** (ex: 400 ou 502);
+    stop
+  else (Não)
+  endif
+
+else (Complex - UseCase)
+  :UseCase inicia **ExecutionContext**;
+
+  partition "BRDD UseCase Pipeline" {
+    
+    :EnrichService (Opcional - Apenas Buscas);
+    if (Erro Inesperado Infra?) then (Sim)
+      :Retorna ExecutionContext com status Error/500;
+      stop
+    else (Não)
+    endif
+
+    :ValidateService verifica regras (Dados Pre-enriquecidos);
+    if (Regras de Negócio Quebradas?) then (Sim)
+      :Adiciona Erro ao **ValidationContext** (ex: R001);
+      :Retorna ExecutionContext com status UnprocessableEntity/422;
+      stop
+    else (Não)
+    endif
+
+    partition "Principal Flow / Side Effects" {
+      :BusinessService ou ClientService executado;
+      if (Falha na Lógica ou Chamada Externa?) then (Sim)
+        if (Permite Retry/Fallback?) then (Sim)
+          :Aplica Lógica de Fallback;
+          :Registra Fallback Effect no Context;
+        else (Não)
+          :Adiciona Erro no Context (Business/External Error);
+          :Retorna ExecutionContext (ex: 400 ou 502);
+          stop
+        endif
+      else (Sucesso)
+        :Registra Efeito de Sucesso (se aplicável);
+      endif
+    }
+  }
+endif
+
+:ResponseService formata **Unified JSON Response**;
+:Retorna Resposta HTTP;
+
+stop
+
+@enduml

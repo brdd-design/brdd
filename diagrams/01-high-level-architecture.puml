@@ -1,0 +1,66 @@
+@startuml High_Level_Architecture
+
+!theme plain
+skinparam componentStyle rectangle
+
+package "Web / API Layer" {
+  [Client / External] <<Actor>>
+  [Router / Controller] <<Component>>
+  [ResponseService] <<Component>>
+}
+
+package "BRDD Core Layer" {
+  [UseCase] <<Orchestrator>>
+  [ValidateService] <<Component>>
+  [EnrichService] <<Component>>
+  [BusinessService] <<Component>>
+  [ClientService] <<Component>>
+  [Listener] <<Component>>
+}
+
+package "Domain Layer" {
+  [Domain Model] <<Data>>
+}
+
+package "Contexts" {
+  [ExecutionContext] <<Context>>
+  [ValidationContext] <<Context>>
+}
+
+package "External Layer" {
+  [External Domain] <<External System>>
+}
+
+[Client / External] --> [Router / Controller] : Request (DTO)
+
+' Simple Flow Bypass
+[Router / Controller] --> [BusinessService] : Simple Flow (No Orchestration)
+[Router / Controller] --> [ClientService] : Simple Flow (No Orchestration)
+
+' Complex Flow
+[Router / Controller] --> [UseCase] : Complex Flow (Delegates Orchestration)
+
+[UseCase] --> [ValidateService] : Calls for Rules Validation
+[UseCase] --> [EnrichService] : Calls for Data Enrichment
+[UseCase] --> [BusinessService] : Calls Core Logic / Effects
+[UseCase] --> [ClientService] : Calls External APIs / Effects
+[Listener] --> [UseCase] : Triggers from Events
+
+[ValidateService] ..> [ValidationContext] : creates (Errors only)
+[ValidateService] --> [Domain Model] : validates (requires enriched data)
+[EnrichService] --> [Domain Model] : queries & enriches (no logic)
+[BusinessService] --> [Domain Model] : executes business rules
+
+[ClientService] --> [External Domain] : interacts (converts Internal <-> External)
+[Listener] --> [External Domain] : consumes
+
+[UseCase] ..> [ExecutionContext] : returns
+[ExecutionContext] --> [ValidationContext] : contains
+[ExecutionContext] --> [Domain Model] : contains Data
+
+[UseCase] --> [ResponseService] : hands over ExecutionContext
+[BusinessService] --> [ResponseService] : hands over raw data
+[ClientService] --> [ResponseService] : hands over raw data
+[ResponseService] --> [Client / External] : Unified JSON Response
+
+@enduml

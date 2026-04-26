@@ -1,0 +1,53 @@
+@startuml Data_Transformation_Flow
+
+!theme plain
+skinparam state {
+  BackgroundColor<<External>> LightGray
+  BackgroundColor<<Core>> Thistle
+  BackgroundColor<<Domain>> LightGoldenRodYellow
+  BackgroundColor<<DTO>> LightBlue
+}
+
+state "Incoming DTO" as DTO <<DTO>>
+state "Domain Model" as DomainModel <<Domain>>
+state "External Request" as ExtReq <<External>>
+state "External Response" as ExtRes <<External>>
+state "Execution Context" as Context <<Core>>
+state "Unified JSON Response" as UnifiedResp <<DTO>>
+
+[*] --> DTO : HTTP Request
+DTO --> DomainModel : Mapped to Domain
+
+state "Execution Flow Decision" as FlowDec {
+  state "Simple Flow" as Simple {
+    DomainModel --> DomainModel : Mutated (BusinessService)
+    DomainModel --> ExtReq : Mapped (ClientService)
+    ExtReq --> ExtRes : External Call
+    ExtRes --> DomainModel : Mapped Back (ClientService)
+  }
+  
+  state "Complex Flow (UseCase)" as Complex {
+    DomainModel --> DomainModel : Enriched via Queries (EnrichService)
+    DomainModel --> DomainModel : Validated (ValidateService)
+    
+    state "Business/External Execution" as BusExtExec {
+      DomainModel --> DomainModel : Mutated (BusinessService)
+      DomainModel --> ExtReq : Mapped (ClientService)
+      ExtReq --> ExtRes : External Call
+      ExtRes --> DomainModel : Mapped Back (ClientService)
+    }
+    
+    BusExtExec --> Context : Wrapped with Setters & Effects
+  }
+}
+
+Simple --> UnifiedResp : ResponseService formats Raw Result
+Context --> UnifiedResp : ResponseService formats Context
+UnifiedResp --> [*] : HTTP Response
+
+note right of DTO : Raw API Input
+note right of DomainModel : Business Logic Data
+note right of ExtReq : Third-party structures
+note right of Context : BRDD Storyteller
+
+@enduml

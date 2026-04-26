@@ -1,0 +1,61 @@
+@startuml Core_Sync_Flow
+
+start
+:Client faz Request;
+:Router / Controller recebe Request;
+
+if (Requer múltiplos serviços / orquestração?) then (Não - Simple Flow)
+  if (É Lógica Interna ou Externa?) then (Interna)
+    :Controller executa **BusinessService** diretamente;
+  else (Externa)
+    :Controller executa **ClientService** diretamente;
+  endif
+  :Serviço retorna dados brutos;
+else (Sim - Complex Flow)
+  :Controller aciona o **UseCase**;
+
+  partition "BRDD UseCase Pipeline" {
+    :UseCase inicializa **ExecutionContext**;
+    
+    if (Precisa enriquecer dados base?) then (Sim)
+      :UseCase executa **EnrichService** (Apenas buscas);
+      :UseCase registra **Setters** no Context;
+    endif
+
+    if (Existem Regras de Validação?) then (Sim)
+      :UseCase executa **ValidateService** (Recebe dados enriquecidos);
+      :ValidateService popula **ValidationContext** com Erros;
+    endif
+
+    if (ValidationContext possui Erros?) then (Sim)
+      :Interrompe pipeline;
+    else (Não)
+      partition "Execução Principal" {
+        if (Lógica é Interna ou Externa?) then (Interna)
+          :UseCase executa **BusinessService** (Regra de Negócios);
+        else (Externa)
+          :UseCase executa **ClientService** (Integração Externa);
+        endif
+      }
+
+      partition "Efeitos Colaterais" {
+        while (Existem Efeitos Colaterais?) is (Sim)
+          if (Tipo do Efeito) then (Interno)
+            :UseCase executa **BusinessService** secundário;
+          else (Externo)
+            :UseCase executa **ClientService** secundário;
+          endif
+          :UseCase registra **Effects** no Context;
+        endwhile (Não)
+      }
+    endif
+  }
+  :UseCase retorna **ExecutionContext**;
+endif
+
+:ResponseService formata para **Unified JSON Response**;
+:Controller envia Response ao Client;
+
+stop
+
+@enduml

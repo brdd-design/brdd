@@ -1,0 +1,100 @@
+@startuml Sequence_Diagram
+
+actor Client
+participant "Router/Controller" as Controller
+participant UseCase
+participant EnrichService
+participant ValidateService
+participant BusinessService
+participant "ClientService" as ExtClient
+participant "External Domain" as ExtAPI
+participant ResponseService
+
+Client -> Controller: Request (DTO)
+activate Controller
+
+alt Simple Flow (No Orchestration)
+    alt Internal Logic
+        Controller -> BusinessService: run(DomainModel)
+        activate BusinessService
+        BusinessService --> Controller: Result Data
+        deactivate BusinessService
+    else External Logic
+        Controller -> ExtClient: call(DomainModel)
+        activate ExtClient
+        ExtClient -> ExtAPI: Convert to External & Call
+        activate ExtAPI
+        ExtAPI --> ExtClient: Response
+        deactivate ExtAPI
+        ExtClient --> Controller: Convert to Internal Result Data
+        deactivate ExtClient
+    end
+else Complex Flow (Orchestration Required)
+    Controller -> UseCase: execute(DomainModel)
+    activate UseCase
+
+    opt Enrichment
+        UseCase -> EnrichService: queryForEnrichment()
+        activate EnrichService
+        EnrichService --> UseCase: Updated Model (No Logic)
+        deactivate EnrichService
+    end
+
+    opt Validation
+        UseCase -> ValidateService: validate(PreEnrichedModel)
+        activate ValidateService
+        ValidateService --> UseCase: ValidationContext (Errors)
+        deactivate ValidateService
+    end
+
+    alt Validation Passed
+        alt Principal Flow (Internal)
+            UseCase -> BusinessService: run(DomainModel)
+            activate BusinessService
+            BusinessService --> UseCase: Business Execution Result
+            deactivate BusinessService
+        else Principal Flow (External)
+            UseCase -> ExtClient: call(DomainModel)
+            activate ExtClient
+            ExtClient -> ExtAPI: API Call
+            activate ExtAPI
+            ExtAPI --> ExtClient: Response
+            deactivate ExtAPI
+            ExtClient --> UseCase: External Data
+            deactivate ExtClient
+        end
+
+        loop Side Effects
+            alt Internal Effect
+                UseCase -> BusinessService: run(EffectContext)
+                activate BusinessService
+                BusinessService --> UseCase: Effect Result
+                deactivate BusinessService
+            else External Effect
+                UseCase -> ExtClient: call(EffectContext)
+                activate ExtClient
+                ExtClient -> ExtAPI: API Call
+                activate ExtAPI
+                ExtAPI --> ExtClient: Response
+                deactivate ExtAPI
+                ExtClient --> UseCase: Effect Result
+                deactivate ExtClient
+            end
+        end
+    else Validation Failed
+        note over UseCase: Pipeline Interrupted
+    end
+
+    UseCase --> Controller: ExecutionContext
+    deactivate UseCase
+end
+
+Controller -> ResponseService: format(Result / Context)
+activate ResponseService
+ResponseService --> Controller: Unified JSON
+deactivate ResponseService
+
+Controller --> Client: HTTP Response
+deactivate Controller
+
+@enduml
