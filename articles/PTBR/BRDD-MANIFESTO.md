@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../assets/generic_cover_landscape.png" alt="BRDD Manifesto Cover" width="800" />
+</div>
+
 # 📜 Manifesto BRDD: As 4 Regras de Ouro
 
 O **Business Rule Driven Design (BRDD)** não é apenas uma estrutura de pastas; é um compromisso técnico fundamentado em quatro pilares inegociáveis. O objetivo é garantir que o Código e o Negócio operem sob a mesma gramática.
