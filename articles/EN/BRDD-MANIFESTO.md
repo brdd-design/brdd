@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="../../assets/generic_cover_landscape.png" alt="BRDD Manifesto Cover" width="800" />
+</div>
+
 # 📜 BRDD Manifesto: The 4 Golden Rules
 
 **Business Rule Driven Design (BRDD)** is not just a folder structure; it is a technical commitment grounded in four non-negotiable pillars. The goal is to ensure that Business and Code operate under the same grammar.
